@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hospital Appointment System</title>
+  <!-- خط عربي + أمان: إخفاء الشاشات يعمل حتى لو فشل تحميل styles.css -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    #guestView[data-guest-screen="landing"] #screenLogin,
+    #guestView[data-guest-screen="landing"] #screenRegister { display: none !important; }
+    #guestView[data-guest-screen="login"] #screenLanding,
+    #guestView[data-guest-screen="login"] #screenRegister { display: none !important; }
+    #guestView[data-guest-screen="register"] #screenLanding,
+    #guestView[data-guest-screen="register"] #screenLogin { display: none !important; }
+    #appView.hidden { display: none !important; }
+    .hidden { display: none !important; }
+  </style>
+  <link rel="stylesheet" href="/ui/styles.css?v=3" />
+</head>
+<body>
+  <div id="guestView" class="guest-screen" data-guest-screen="landing">
+    <div class="guest-stack">
+      <div class="guest-stage">
+        <!-- الرئيسية: خياران فقط -->
+        <div id="screenLanding" class="guest-panel">
+          <div class="guest-logo" aria-hidden="true">✚</div>
+          <p class="guest-kicker">Hospital Appointment System</p>
+          <h1 class="guest-title">نظام مواعيد المستشفى</h1>
+          <p class="guest-sub">سجّل الدخول بأي دور (مدير، طبيب، مريض)، أو أنشئ حساباً جديداً كـ<strong>مريض</strong>.</p>
+
+          <div class="guest-actions-row">
+            <button type="button" id="btnGoLogin" class="guest-btn guest-btn--solid">تسجيل الدخول</button>
+            <button type="button" id="btnGoRegister" class="guest-btn guest-btn--outline">إنشاء حساب</button>
+          </div>
+
+          <details class="guest-details">
+            <summary>حسابات جاهزة للتجربة</summary>
+            <ul class="guest-demo-list">
+              <li><span>مدير</span> <code>admin@hospital.example.com</code> — <code>Admin123!</code></li>
+              <li><span>طبيب</span> <code>doctor.demo@hospital.example.com</code> — <code>Doctor123!</code></li>
+              <li><span>مريض</span> <code>patient.demo@hospital.example.com</code> — <code>Patient123!</code></li>
+            </ul>
+          </details>
+        </div>
+
+        <!-- تسجيل الدخول -->
+        <div id="screenLogin" class="guest-panel">
+          <button type="button" class="guest-back" id="btnBackLandingFromLogin">→ الرئيسية</button>
+          <h2 class="guest-panel-title">تسجيل الدخول</h2>
+          <p class="guest-panel-lead">أدخل بياناتك — تُفتح اللوحة المناسبة تلقائياً حسب نوع الحساب.</p>
+          <div class="guest-field">
+            <label for="loginEmail">البريد الإلكتروني</label>
+            <input type="email" id="loginEmail" autocomplete="username" placeholder="name@example.com" />
+          </div>
+          <div class="guest-field">
+            <label for="loginPass">كلمة المرور</label>
+            <input type="password" id="loginPass" autocomplete="current-password" placeholder="••••••••" />
+          </div>
+          <button type="button" id="btnLogin" class="guest-btn guest-btn--solid guest-btn--block">دخول</button>
+        </div>
+
+        <!-- إنشاء حساب (مريض) -->
+        <div id="screenRegister" class="guest-panel">
+          <button type="button" class="guest-back" id="btnBackLandingFromRegister">→ الرئيسية</button>
+          <h2 class="guest-panel-title">إنشاء حساب</h2>
+          <p class="guest-panel-lead">حساب <strong>مريض</strong> فقط — بعد الإنشاء يتم تسجيل الدخول تلقائياً.</p>
+          <div class="guest-field">
+            <label for="regEmail">البريد</label>
+            <input type="email" id="regEmail" placeholder="you@example.com" />
+          </div>
+          <div class="guest-field">
+            <label for="regName">الاسم الكامل</label>
+            <input type="text" id="regName" placeholder="الاسم كما سيظهر في المواعيد" />
+          </div>
+          <div class="guest-field">
+            <label for="regPass">كلمة المرور</label>
+            <input type="password" id="regPass" placeholder="8 أحرف على الأقل" />
+          </div>
+          <button type="button" id="btnRegister" class="guest-btn guest-btn--solid guest-btn--block">إنشاء الحساب والدخول</button>
+        </div>
+      </div>
+
+      <p id="authMsg" class="auth-banner msg" role="status"></p>
+    </div>
+  </div>
+
+  <div id="appView" class="layout hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>Hospital Appointment</h1>
+        <p class="muted">نظام المواعيد</p>
+      </div>
+      <div class="user-chip" id="userChip"></div>
+      <p class="role-badge" id="roleBadge"></p>
+      <button type="button" id="btnLogout" class="btn-secondary full">تسجيل الخروج</button>
+      <a class="link-docs" href="/docs" target="_blank" rel="noopener">فتح وثائق API (Swagger)</a>
+    </aside>
+
+    <main class="main-panels">
+      <div id="panelAdmin" class="role-panels hidden">
+        <p class="panel-desc">Admin: إدارة الأطباء والمرضى، عرض كل المواعيد، حذف موعد.</p>
+
+        <section class="card">
+          <h2>إضافة طبيب</h2>
+          <div class="grid-2">
+            <div><label>البريد</label><input type="email" id="admDocEmail" /></div>
+            <div><label>كلمة المرور</label><input type="password" id="admDocPass" /></div>
+            <div><label>الاسم الكامل</label><input type="text" id="admDocName" /></div>
+            <div><label>التخصص</label><input type="text" id="admDocSpec" placeholder="Cardiology" /></div>
+            <div class="span-2"><label>القسم (اختياري)</label><input type="text" id="admDocDept" /></div>
+          </div>
+          <button type="button" id="btnAdminCreateDoctor" class="btn-primary">حفظ الطبيب</button>
+          <p id="admDocMsg" class="msg"></p>
+        </section>
+
+        <section class="card">
+          <h2>قائمة الأطباء</h2>
+          <button type="button" id="btnAdminLoadDoctors" class="btn-secondary">تحديث</button>
+          <div id="adminDoctorsTable" class="table-wrap"></div>
+        </section>
+
+        <section class="card">
+          <h2>إضافة مريض</h2>
+          <div class="grid-2">
+            <div><label>البريد</label><input type="email" id="admPatEmail" /></div>
+            <div><label>كلمة المرور</label><input type="password" id="admPatPass" /></div>
+            <div><label>الاسم الكامل</label><input type="text" id="admPatName" /></div>
+            <div><label>الهاتف (اختياري)</label><input type="text" id="admPatPhone" /></div>
+          </div>
+          <button type="button" id="btnAdminCreatePatient" class="btn-primary">حفظ المريض</button>
+          <p id="admPatMsg" class="msg"></p>
+        </section>
+
+        <section class="card">
+          <h2>قائمة المرضى</h2>
+          <button type="button" id="btnAdminLoadPatients" class="btn-secondary">تحديث</button>
+          <div id="adminPatientsTable" class="table-wrap"></div>
+        </section>
+
+        <section class="card">
+          <h2>كل المواعيد</h2>
+          <div class="grid-2">
+            <div><label>تصفية برقم طبيب (اختياري)</label><input type="number" id="admApptDoc" min="1" /></div>
+            <div><label>تصفية برقم مريض (اختياري)</label><input type="number" id="admApptPat" min="1" /></div>
+          </div>
+          <button type="button" id="btnAdminLoadAppts" class="btn-secondary">تحميل المواعيد</button>
+          <div id="adminApptPager" class="pager"></div>
+          <div id="adminApptsTable" class="table-wrap"></div>
+        </section>
+
+        <section class="card card-accent">
+          <h2>إعادة جدولة / نقل لطبيب آخر</h2>
+          <p class="hint">للمواعيد <strong>المجدولة</strong> فقط. المدير يقدر يغيّر رقم الطبيب. الحد الأدنى للمدة 15 دقيقة.</p>
+          <div class="grid-2">
+            <div><label>رقم الموعد</label><input type="number" id="admRsId" min="1" /></div>
+            <div><label>طبيب جديد (اختياري)</label><input type="number" id="admRsDoc" min="1" placeholder="فارغ = نفس الطبيب" /></div>
+            <div><label>بداية جديدة</label><input type="datetime-local" id="admRsStart" /></div>
+            <div><label>نهاية جديدة</label><input type="datetime-local" id="admRsEnd" /></div>
+          </div>
+          <button type="button" id="btnAdmReschedule" class="btn-primary">تطبيق</button>
+          <p id="admRsMsg" class="msg"></p>
+        </section>
+
+        <section class="card card-muted">
+          <h2>مراقبة</h2>
+          <p class="hint">لوحة المدير للمقاييس.</p>
+          <a class="btn-link" href="/dashboard" target="_blank" rel="noopener">فتح /dashboard</a>
+        </section>
+      </div>
+
+      <div id="panelDoctor" class="role-panels hidden">
+        <p class="panel-desc">Doctor: عرض جدولك وتحديث حالة الموعد (مكتمل / ملغى) للمواعيد المجدولة.</p>
+        <section class="card">
+          <h2>جدول مواعيدي</h2>
+          <button type="button" id="btnDoctorRefresh" class="btn-primary">تحديث الجدول</button>
+          <div id="doctorApptPager" class="pager"></div>
+          <div id="doctorApptsTable" class="table-wrap"></div>
+          <p id="doctorMsg" class="msg"></p>
+        </section>
+        <section class="card card-accent">
+          <h2>إعادة جدولة موعد</h2>
+          <p class="hint">للمواعيد <strong>المجدولة</strong> على جدولك فقط. لا يمكن نقل المريض لطبيب آخر من هنا.</p>
+          <div class="grid-2">
+            <div><label>رقم الموعد</label><input type="number" id="docRsId" min="1" /></div>
+            <div><label>بداية جديدة</label><input type="datetime-local" id="docRsStart" /></div>
+            <div class="span-2"><label>نهاية جديدة</label><input type="datetime-local" id="docRsEnd" /></div>
+          </div>
+          <button type="button" id="btnDocReschedule" class="btn-primary">تطبيق</button>
+          <p id="docRsMsg" class="msg"></p>
+        </section>
+      </div>
+
+      <div id="panelPatient" class="role-panels hidden">
+        <p class="panel-desc">Patient: حجز وإلغاء مواعيدك، وعرض جدولك، وتحديث هاتفك في الملف.</p>
+
+        <section class="card">
+          <h2>حجز موعد</h2>
+          <p class="hint">الموعد لا يبدأ في الماضي، والمدة لا تقل عن <strong>15 دقيقة</strong> ولا تتجاوز 12 ساعة.</p>
+          <label>الطبيب</label>
+          <select id="patDoctorSelect"><option value="">— اختر طبيباً —</option></select>
+          <button type="button" id="btnPatLoadDoctors" class="btn-secondary small-inline">تحميل الأطباء</button>
+          <div class="grid-2">
+            <div><label>البداية</label><input type="datetime-local" id="patStart" /></div>
+            <div><label>النهاية</label><input type="datetime-local" id="patEnd" /></div>
+          </div>
+          <label>السبب (اختياري)</label>
+          <input type="text" id="patReason" />
+          <button type="button" id="btnPatBook" class="btn-primary">حجز</button>
+          <p id="patBookMsg" class="msg"></p>
+        </section>
+
+        <section class="card">
+          <h2>مواعيدي</h2>
+          <button type="button" id="btnPatRefreshAppts" class="btn-secondary">تحديث</button>
+          <div id="patientApptPager" class="pager"></div>
+          <div id="patientApptsTable" class="table-wrap"></div>
+          <p id="patApptMsg" class="msg"></p>
+        </section>
+
+        <section class="card card-accent">
+          <h2>إعادة جدولة موعد</h2>
+          <p class="hint">للمواعيد <strong>المجدولة</strong> فقط. لا يمكن تغيير الطبيب من هنا.</p>
+          <div class="grid-2">
+            <div><label>رقم الموعد</label><input type="number" id="patRsId" min="1" /></div>
+            <div><label>بداية جديدة</label><input type="datetime-local" id="patRsStart" /></div>
+            <div class="span-2"><label>نهاية جديدة</label><input type="datetime-local" id="patRsEnd" /></div>
+          </div>
+          <button type="button" id="btnPatReschedule" class="btn-primary">تطبيق</button>
+          <p id="patRsMsg" class="msg"></p>
+        </section>
+
+        <section class="card">
+          <h2>ملفي</h2>
+          <p class="hint" id="patProfileHint"></p>
+          <label>الهاتف</label>
+          <input type="text" id="patPhoneEdit" />
+          <button type="button" id="btnPatSaveProfile" class="btn-primary">حفظ الهاتف</button>
+          <p id="patProfileMsg" class="msg"></p>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="/ui/app.js?v=4"></script>
+</body>
+</html>
