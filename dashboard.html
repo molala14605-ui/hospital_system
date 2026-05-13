@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hospital API — Monitoring</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+    header { padding: 1.25rem 1.5rem; background: #1e293b; border-bottom: 1px solid #334155; }
+    main { padding: 1.5rem; max-width: 960px; margin: 0 auto; }
+    .card { background: #1e293b; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1rem; border: 1px solid #334155; }
+    label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem; }
+    input { width: 100%; padding: 0.5rem 0.65rem; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; margin-bottom: 0.75rem; }
+    button { background: #38bdf8; color: #0f172a; border: none; padding: 0.55rem 1rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    pre { white-space: pre-wrap; word-break: break-word; font-size: 0.85rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
+    .stat { background: #0f172a; padding: 0.75rem; border-radius: 8px; border: 1px solid #334155; }
+    .stat strong { display: block; font-size: 1.35rem; }
+    .err { color: #fca5a5; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 style="margin:0;font-size:1.25rem;">Monitoring dashboard</h1>
+    <p style="margin:0.35rem 0 0;color:#94a3b8;font-size:0.9rem;">Admin JWT required — login below, then metrics load automatically.</p>
+  </header>
+  <main>
+    <div class="card">
+      <h2 style="margin-top:0;font-size:1rem;">Admin login</h2>
+      <label>Email</label>
+      <input id="email" type="email" autocomplete="username" />
+      <label>Password</label>
+      <input id="password" type="password" autocomplete="current-password" />
+      <button id="loginBtn">Load metrics</button>
+      <p id="msg" class="err" style="min-height:1.25rem;margin-top:0.5rem;"></p>
+    </div>
+    <div class="card" id="statsCard" style="display:none;">
+      <h2 style="margin-top:0;font-size:1rem;">Summary</h2>
+      <div class="grid" id="stats"></div>
+    </div>
+    <div class="card" id="healthCard">
+      <h2 style="margin-top:0;font-size:1rem;">Health</h2>
+      <pre id="health">Loading…</pre>
+    </div>
+    <div class="card" id="recentCard" style="display:none;">
+      <h2 style="margin-top:0;font-size:1rem;">Recent requests</h2>
+      <pre id="recent"></pre>
+    </div>
+  </main>
+  <script>
+    const API = '/api/v1';
+    async function loadHealth() {
+      try {
+        const r = await fetch('/health');
+        const j = await r.json();
+        document.getElementById('health').textContent = JSON.stringify(j, null, 2);
+      } catch (e) {
+        document.getElementById('health').textContent = 'Health check failed: ' + e;
+      }
+    }
+    function renderSummary(data) {
+      const stats = document.getElementById('stats');
+      stats.innerHTML = '';
+      const items = [
+        ['Uptime (s)', data.uptime_seconds],
+        ['Total requests', data.request_count],
+        ['Errors', data.error_count],
+        ['Error rate', data.error_rate],
+        ['Avg response (ms)', data.avg_response_time_ms],
+      ];
+      for (const [k,v] of items) {
+        const d = document.createElement('div');
+        d.className = 'stat';
+        d.innerHTML = '<span style="color:#94a3b8;font-size:0.8rem;">'+k+'</span><strong>'+v+'</strong>';
+        stats.appendChild(d);
+      }
+      document.getElementById('statsCard').style.display = 'block';
+      document.getElementById('recentCard').style.display = 'block';
+      document.getElementById('recent').textContent = JSON.stringify(data.recent_requests || [], null, 2);
+    }
+    document.getElementById('loginBtn').onclick = async () => {
+      const msg = document.getElementById('msg');
+      msg.textContent = '';
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if (!email || !password) { msg.textContent = 'Enter admin email and password.'; return; }
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      try {
+        const lr = await fetch(API + '/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        if (!lr.ok) {
+          const t = await lr.text();
+          throw new Error(t || 'Login failed');
+        }
+        const { access_token } = await lr.json();
+        const sr = await fetch(API + '/monitoring/summary', {
+          headers: { Authorization: 'Bearer ' + access_token },
+        });
+        if (!sr.ok) {
+          const t = await sr.text();
+          throw new Error(t || 'Summary failed (admin only)');
+        }
+        const data = await sr.json();
+        renderSummary(data);
+      } catch (e) {
+        msg.textContent = e.message || String(e);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+    loadHealth();
+    setInterval(loadHealth, 15000);
+  </script>
+</body>
+</html>
